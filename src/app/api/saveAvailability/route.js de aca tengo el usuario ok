@@ -1,0 +1,69 @@
+import { PrismaClient } from '@prisma/client';
+import { NextResponse } from 'next/server';
+const prisma = new PrismaClient();
+
+export async function POST(request) {
+  const session = request.headers.get('authorization');
+
+  if (!session) {
+    return NextResponse.json({ success: false, message: 'No se proporcionó información de sesión' }, { status: 401 });
+  }
+
+  const accessToken = session.split(' ')[1]; // Quita 'Bearer' del token
+
+  try {
+    let userIdToUse;
+
+    // Verificación de si el token es de Google
+    const tokenInfoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${accessToken}`, {
+      method: 'GET',
+    });
+
+    if (tokenInfoResponse.ok) {
+      const tokenInfo = await tokenInfoResponse.json();
+      const issuer = tokenInfo.iss;
+
+      if (issuer === 'accounts.google.com' || issuer === 'https://accounts.google.com') {
+        console.log("vino de Google")
+        // Si viene de Google, buscamos el userId en base al email
+        const userResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        if (!userResponse.ok) {
+          throw new Error('Error al obtener información del usuario');
+        }
+
+        const userData = await userResponse.json();
+        const user = await prisma.instusuario.findUnique({
+          where: {
+            email: userData.email
+          }
+        });
+
+        if (!user) {
+          throw new Error('Usuario no encontrado en la base de datos');
+        }
+        userIdToUse = user.id; // Usamos el userId de la base de datos
+      }
+    }
+console.log(user)
+    // Aquí procesamos la disponibilidad
+    const { availability } = await request.json();
+    const availabilityData = availability.map(entry => ({
+      ...entry,
+      userId: userIdToUse  // Si tenemos el userId de la base de datos, lo usamos; si no, usamos el del entry
+    }));
+
+    await prisma.Instdisponibilidades.createMany({
+      data: availabilityData,
+    });
+
+    return NextResponse.json({ success: true, message: 'Disponibilidad guardada con éxito' });
+  } catch (error) {
+    console.error('Error al procesar la solicitud:', error.message, error.stack);
+    return NextResponse.json({ success: false, message: 'Error al procesar la solicitud', error: error.message }, { status: 500 });
+  }
+}

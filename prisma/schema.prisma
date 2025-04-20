@@ -1,0 +1,100 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Usuario {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  nombre         String   @db.Text
+  avatar         String
+  passhasheada   String
+  puedeescribir  Boolean
+  linkautor      String?  @db.Text
+  tokenEmail     String?  @db.Text
+  noticias       Noticia[]
+
+  @@map("usuarios")
+}
+
+model Noticia {
+  id           Int      @id @default(autoincrement())
+  date         DateTime
+  autor       Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId     Int
+  title        String
+  description  String   @db.Text
+  image        String?  @db.Text
+  likes        Int      @default(0)
+  categoria    String? 
+
+  @@map("noticias")
+}
+
+model Instusuario {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  nombre         String   @db.Text
+  avatar         String
+  passhasheada   String
+  rol            String
+  tokenEmail     String?  @db.Text
+
+  instmaterias InstusuarioInstmateria[]
+  disponibilidades Instdisponibilidades[] // Añadimos este campo para la relación opuesta
+  profesorReservas Instreservas[] @relation("profesorReservas")
+  alumnoReservas   Instreservas[] @relation("alumnoReservas")
+  @@map("instusuarios")
+}
+
+model Instmateria {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+   
+  instusuarios InstusuarioInstmateria[]
+
+  @@map("instmaterias")
+}
+
+model InstusuarioInstmateria {
+  instusuarioId Int
+  instmateriaId Int
+
+  instusuario Instusuario @relation(fields: [instusuarioId], references: [id])
+  instmateria Instmateria @relation(fields: [instmateriaId], references: [id])
+
+  @@id([instusuarioId, instmateriaId])
+  @@map("instusuario_instmateria")
+}
+
+model Instdisponibilidades {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  date       String
+  hour       Int
+  available  Boolean
+
+  user       Instusuario @relation(fields: [userId], references: [id])
+
+  @@map("instdiponibilidades") // Añade esto para mapear correctamente el nombre de la tabla
+}
+
+model Instreservas {
+  id         Int      @id @default(autoincrement())
+  profesorId Int
+  alumnoId   Int
+  date       String
+  hour       Int
+  ref        String
+  status     String  
+
+  profesor   Instusuario @relation("profesorReservas", fields: [profesorId], references: [id])
+  alumno     Instusuario @relation("alumnoReservas", fields: [alumnoId], references: [id])
+
+  @@map("instreservas")
+}
+
