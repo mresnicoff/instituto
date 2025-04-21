@@ -1,4 +1,5 @@
-'use client'
+'use client';
+
 import React, { useState } from 'react';
 import { useTheme } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
@@ -12,11 +13,9 @@ import {
   Text, 
   useToast,
   useColorModeValue,
-  Select, // Usamos Select en lugar de Switch e Input para rol
-  Image 
+  Select
 } from '@chakra-ui/react';
 import axios from 'axios';
-import ImageUploading from 'react-images-uploading';
 
 const RegisterForm = () => {
   const theme = useTheme();
@@ -27,7 +26,7 @@ const RegisterForm = () => {
     password: '',
     repeatPassword: '',
     nombre: '',
-    rol: '' // Cambiado de linkautor a rol
+    rol: ''
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -39,12 +38,17 @@ const RegisterForm = () => {
   const btnColor = useColorModeValue("blue.500", "brand.900");
   const borderColor = useColorModeValue('brand.800', 'brand.800');
 
-  const [images, setImages] = useState([]);
+  const [imageFile, setImageFile] = useState(null);
 
-  const onChange = (imageList, addUpdatedIndex) => {
-    setImages(imageList);
-    if(imageList.length > 0) {
-      setUser(prevState => ({ ...prevState, avatar: imageList[0].data_url }));
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    setImageFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setUser(prevState => ({ ...prevState, avatar: reader.result }));
+      };
+      reader.readAsDataURL(file);
     } else {
       setUser(prevState => ({ ...prevState, avatar: '' }));
     }
@@ -129,48 +133,46 @@ const RegisterForm = () => {
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
     try {
-      const formData = new FormData();
-      if (images.length > 0) {
-        formData.append('file', images[0].file);
+      let avatarUrl = user.avatar;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
         formData.append('upload_preset', uploadPreset);
-             const cloudinaryResponse = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, formData);
-        
-        const avatarUrl = cloudinaryResponse.data.secure_url;
-        console.log(avatarUrl)
-        setUser(prevUser => ({ ...prevUser, avatar: avatarUrl }));
+        const cloudinaryResponse = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, formData);
+        avatarUrl = cloudinaryResponse.data.secure_url;
+      }
 
-        const response = await axios.post('api/nuevousuario/', {
-          email: user.email,
-          avatar: avatarUrl,
-          password: user.password,
-          nombre: user.nombre,
-          rol: user.rol
+      const response = await axios.post('api/nuevousuario/', {
+        email: user.email,
+        avatar: avatarUrl,
+        password: user.password,
+        nombre: user.nombre,
+        rol: user.rol
+      });
+
+      if (response.data.success) {
+        toast({
+          title: "Éxito",
+          description: "Registro exitoso. Redirigiendo al login",
+          status: "success",
+          duration: 1000,
+          isClosable: true,
         });
-
-        if (response.data.success) {
-          toast({
-            title: "Éxito",
-            description: "Registro exitoso. Redirigiendo al login",
-            status: "success",
-            duration: 1000,
-            isClosable: true,
-          });
-          router.push('/loguearse');
-        } else {
-          toast({
-            title: "Error",
-            description: response.data.message || "No se pudo registrar el usuario.",
-            status: "error",
-            duration: 1000,
-            isClosable: true,
-          });
-        }
+        router.push('/loguearse');
+      } else {
+        toast({
+          title: "Error",
+          description: response.data.message || "No se pudo registrar el usuario.",
+          status: "error",
+          duration: 1000,
+          isClosable: true,
+        });
       }
     } catch (error) {
-      console.error('Error subiendo la imagen a Cloudinary:', error);
+      console.error('Error al registrar:', error);
       toast({
         title: "Error",
-        description: "Error al subir la imagen. Inténtalo de nuevo.",
+        description: "Error al registrar. Inténtalo de nuevo.",
         status: "error",
         duration: 1000,
         isClosable: true,
@@ -212,44 +214,14 @@ const RegisterForm = () => {
           </FormControl>
           <FormControl id="avatar" isRequired isInvalid={!!showError('avatar')}>
             <FormLabel color={textColor}>Imagen de Avatar</FormLabel>
-            <ImageUploading
-              value={images}
-              onChange={onChange}
-              maxNumber={1}
-              dataURLKey="data_url"
-            >
-              {({
-                imageList,
-                onImageUpload,
-                onImageRemoveAll,
-                onImageUpdate,
-                onImageRemove,
-                isDragging,
-                dragProps,
-              }) => (
-                <div className="upload__image-wrapper">
-                  <Button 
-                    bg={btnColor}
-                    color="white"
-                    borderColor={borderColor}
-                    _hover={{
-                      bg: useColorModeValue('blue.300', 'purple.300'),
-                      borderColor: useColorModeValue('brand.700', 'brand.900'),
-                    }}
-                    onClick={onImageUpload}
-                    {...dragProps}
-                  >
-                    {imageList.length === 0 ? 'Subir Imagen' : 'Cambiar Imagen'}
-                  </Button>
-                  {imageList.map((image, index) => (
-                    <div key={index} className="image-item">
-                      <Image src={image['data_url']} alt="" width="100" />
-                      <Button onClick={() => onImageRemove(index)}>Eliminar</Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ImageUploading>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+            {user.avatar && (
+              <img src={user.avatar} alt="Vista previa" style={{ width: '100px', marginTop: '10px' }} />
+            )}
             {showError('avatar') && <Text color="red.500" fontSize="sm">{errors.avatar}</Text>}
           </FormControl>
           <FormControl id="password" isRequired isInvalid={!!showError('password')}>
