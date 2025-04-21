@@ -1,11 +1,15 @@
-'use client'
-import ConfirmationForm from "../components/ConfirmationForm";
+import { Suspense } from 'react';
+import ConfirmationForm from '../components/ConfirmationForm';
 
-export default function Confirmacion() {
-    return (
-      <div>
-        <h1>Carga tus disponibilidades para dar clases</h1>
-<ConfirmationForm/>
-      </div>
-    );
-  }
+export const dynamic = 'force-dynamic'; // Evita el prerenderizado
+
+export default function ConfirmacionReservaPage() {
+  return (
+    <div>
+      <h1>Confirmación de Reserva</h1>
+      <Suspense fallback={<div>Cargando...</div>}>
+        <ConfirmationForm />
+      </Suspense>
+    </div>
+  );
+}

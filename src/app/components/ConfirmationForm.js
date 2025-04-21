@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -12,6 +13,8 @@ import {
 import QRCodeGenerator from './QRCodeGenerator';
 import { useSearchParams } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 const ConfirmationForm = () => {
   const searchParams = useSearchParams();
   const [paymentOption, setPaymentOption] = useState('50%');
@@ -21,41 +24,19 @@ const ConfirmationForm = () => {
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const toast = useToast();
 
-  // Obtener datos de la reserva desde query params
   const reservationData = {
-    date: searchParams.get('date'),
-    hour: searchParams.get('hour'),
-    subject: searchParams.get('subject'),
-    professor: searchParams.get('professor'),
-    alumno: searchParams.get('alumno'),
-    importe: searchParams.get('importe'),
-    profesorId: searchParams.get('profesorId'),
-    alumnoId: searchParams.get('alumnoId'),
+    date: searchParams?.get('date') || 'No disponible',
+    hour: searchParams?.get('hour') || 'No disponible',
+    subject: searchParams?.get('subject') || 'No disponible',
+    professor: searchParams?.get('professor') || 'No disponible',
+    alumno: searchParams?.get('alumno') || 'No disponible',
+    importe: searchParams?.get('importe') || 'No disponible',
+    profesorId: searchParams?.get('profesorId') || 'No disponible',
+    alumnoId: searchParams?.get('alumnoId') || 'No disponible',
   };
 
-  // Función para crear la preferencia y la reserva
   async function fetchPreference(amount) {
     try {
-      // Validar datos requeridos
-      const requiredFields = ['date', 'hour', 'profesorId', 'alumnoId'];
-      const missingFields = requiredFields.filter(
-        (field) => !reservationData[field]
-      );
-      if (missingFields.length > 0) {
-        throw new Error(
-          `Faltan datos de la reserva: ${missingFields.join(', ')}`
-        );
-      }
-
-      // Asegurarse de que hour, profesorId y alumnoId sean números válidos
-      const parsedHour = parseInt(reservationData.hour);
-      const parsedProfesorId = parseInt(reservationData.profesorId);
-      const parsedAlumnoId = parseInt(reservationData.alumnoId);
-      if (isNaN(parsedHour) || isNaN(parsedProfesorId) || isNaN(parsedAlumnoId)) {
-        throw new Error('Hora, profesorId o alumnoId no son válidos');
-      }
-
-      // Llamar a /api/create-preference
       const preferenceResponse = await fetch('/api/create-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,25 +44,6 @@ const ConfirmationForm = () => {
       });
       const preferenceData = await preferenceResponse.json();
       if (preferenceData.error) throw new Error(preferenceData.error);
-
-      // Crear la reserva
-      const createReservationResponse = await fetch('/api/create-reservation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profesorId: parsedProfesorId,
-          alumnoId: parsedAlumnoId,
-          date: reservationData.date,
-          hour: parsedHour,
-          status: 'pendiente',
-          ref: preferenceData.external_reference,
-        }),
-      });
-
-      if (!createReservationResponse.ok) {
-        const errorData = await createReservationResponse.json();
-        throw new Error(errorData.error || 'Error al crear la reserva');
-      }
 
       setQrUrl(preferenceData.init_point);
       setExternalReference(preferenceData.external_reference);
@@ -94,17 +56,14 @@ const ConfirmationForm = () => {
         duration: 5000,
         isClosable: true,
       });
-      console.error('Error:', error);
     }
   }
 
-  // Manejar el clic en "Generar Código QR"
   const handleGenerateQR = () => {
     const amount = paymentOption === '50%' ? 2500 : 5000;
     fetchPreference(amount);
   };
 
-  // Polling para consultar el estado del pago
   useEffect(() => {
     if (!externalReference || paymentStatus !== 'pending') return;
 
@@ -149,15 +108,14 @@ const ConfirmationForm = () => {
       <Text fontSize="xl" mb={4}>Confirma la reserva:</Text>
       <VStack spacing={4} align="start">
         <Text fontWeight="bold">Detalles de la reserva:</Text>
-        <Text>Materia: {reservationData.subject || 'No disponible'}</Text>
-        <Text>Profesor: {reservationData.professor || 'No disponible'}</Text>
-        <Text>Alumno: {reservationData.alumno || 'No disponible'}</Text>
-        <Text>Fecha: {reservationData.date || 'No disponible'}</Text>
+        <Text>Materia: {reservationData.subject}</Text>
+        <Text>Profesor: {reservationData.professor}</Text>
+        <Text>Alumno: {reservationData.alumno}</Text>
+        <Text>Fecha: {reservationData.date}</Text>
         <Text>Hora: {reservationData.hour ? `${reservationData.hour}:00` : 'No disponible'}</Text>
-        <Text>Importe total: ${reservationData.importe || 'No disponible'}</Text>
+        <Text>Importe total: ${reservationData.importe}</Text>
         <Text>
-          Monto a pagar: ${paymentOption === '50%' ? 2500 : 5000} (
-          {paymentOption})
+          Monto a pagar: ${paymentOption === '50%' ? 2500 : 5000} ({paymentOption})
         </Text>
 
         <RadioGroup onChange={setPaymentOption} value={paymentOption}>

@@ -1,50 +1,60 @@
-import NextAuth from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@prisma/client";
+// src/app/api/auth/[...nextauth]/route.js
+import NextAuthModule from 'next-auth';
+import CredentialsProviderModule from 'next-auth/providers/credentials';
+import GoogleProviderModule from 'next-auth/providers/google';
+import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import GoogleProvider from "next-auth/providers/google";
-const prisma = new PrismaClient();
 
-const authOptions = {
+// Access default exports
+const NextAuth = NextAuthModule.default || NextAuthModule;
+const CredentialsProvider = CredentialsProviderModule.default || CredentialsProviderModule;
+const GoogleProvider = GoogleProviderModule.default || GoogleProviderModule;
+
+// Debug imports
+console.log('NextAuth:', NextAuth);
+console.log('GoogleProvider:', GoogleProvider);
+console.log('CredentialsProvider:', CredentialsProvider);
+
+export const authOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly', // Asegúrate de que este scope está incluido
-        }
-      }
+          prompt: 'consent',
+          access_type: 'offline',
+          response_type: 'code',
+          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+        },
+      },
     }),
     CredentialsProvider({
-      name: "Credentials",
+      name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "text", placeholder: "jsmith@example.com" },
-        password: { label: "Password", type: "password" }
+        email: { label: 'Email', type: 'text', placeholder: 'jsmith@example.com' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         try {
-          console.log("Autorizando usuario con email:", credentials.email);
+          console.log('Authorizing user with email:', credentials.email);
           const user = await prisma.instusuario.findUnique({
             where: { email: credentials.email },
           });
 
           if (!user) {
-            console.log("El usuario no existe");
+            console.log('User does not exist');
             return null;
           }
 
           const isValidPassword = await bcrypt.compare(credentials.password, user.passhasheada);
           
           if (!isValidPassword) {
-            console.log("Contraseña incorrecta");
+            console.log('Incorrect password');
             return null;
           }
 
-          return { 
+          return {
             id: user.id,
             email: user.email,
             nombre: user.nombre,
@@ -52,16 +62,15 @@ const authOptions = {
             rol: user.rol,
           };
         } catch (error) {
-          console.error("Error en la autenticación:", error);
+          console.error('Authentication error:', error);
           return null;
         }
-      }
+      },
     }),
-
   ],
   callbacks: {
-    session: async ({ session, token }) => {
-      if (token ) {
+    async session({ session, token }) {
+      if (token) {
         session.user = {
           id: token.id,
           email: token.email,
@@ -70,34 +79,28 @@ const authOptions = {
           rol: token.rol,
         };
         if (token.provider === 'google') {
-          // Actualizamos con información de Google
           session.user.nombre = token.name || session.user.nombre;
           session.user.avatar = token.picture || session.user.avatar;
-          session.user.email = token.email || session.user.avatar;
+          session.user.email = token.email || session.user.email;
           session.accessToken = token.accessToken;
-          session.expiresAt = token.expires_at; // Tiempo de expiración del access token
-          session.refreshToken = token.refreshToken; // Para refrescar el token cuando expire
+          session.expiresAt = token.expires_at;
+          session.refreshToken = token.refreshToken;
         }
-
       }
-
       return session;
     },
-    jwt: async ({ token, user, account, profile }) => {
+    async jwt({ token, user, account, profile }) {
       if (account && account.provider === 'google') {
-        // Autenticación de Google
         return {
-          ...token, // Mantenemos cualquier dato existente
-          id: profile.sub, // Google usa 'sub' para el ID del usuario
+          ...token,
+          id: profile.sub,
           email: profile.email,
           nombre: profile.name,
           avatar: profile.picture,
-          provider: 'google', // Añadimos esto para identificación
+          provider: 'google',
           accessToken: account.access_token,
-          // También podrías añadir el refresh_token si lo necesitas
           refreshToken: account.refresh_token,
-          // Y los tiempos de expiración si los provee Google
-          expires_at: Date.now() + (Number(account.expires_in) * 1000),
+          expires_at: account.expires_in ? Date.now() + Number(account.expires_in) * 1000 : undefined,
         };
       }
       if (user) {
@@ -108,14 +111,14 @@ const authOptions = {
         token.rol = user.rol;
       }
       return token;
-    }
+    },
   },
   pages: {
     signIn: '/auth/signin',
   },
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
-

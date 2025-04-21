@@ -11,13 +11,10 @@
   "scripts": {
   
     
-  "start:ngrok": "node ngrok.mjs",
-  
-    
   "start:next": "next dev --turbopack",
   
     
-  "dev": "npm run start:next & npm run start:ngrok",
+  "dev": "next dev",
   
     
   "build": "next build",
@@ -54,7 +51,7 @@
   "@mercadopago/sdk-js": "^0.0.3",
   
     
-  "@prisma/client": "^6.1.0",
+  "@prisma/client": "^6.6.0",
   
     
   "axios": "^1.7.9",
