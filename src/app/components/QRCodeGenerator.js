@@ -1,7 +1,6 @@
-// components/QRCodeGenerator.js
 'use client';
 
-import QRCode from 'react-qr-code';
+import { QRCode } from 'react-qr-code'; // Cambia a importación nombrada
 
 const QRCodeGenerator = ({ url }) => {
   if (!url) {

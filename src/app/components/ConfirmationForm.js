@@ -15,6 +15,8 @@ import { useSearchParams } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
+
+
 const ConfirmationForm = () => {
   const searchParams = useSearchParams();
   const [paymentOption, setPaymentOption] = useState('50%');
@@ -37,18 +39,21 @@ const ConfirmationForm = () => {
 
   async function fetchPreference(amount) {
     try {
+
       const preferenceResponse = await fetch('/api/create-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount }),
       });
       const preferenceData = await preferenceResponse.json();
+
       if (preferenceData.error) throw new Error(preferenceData.error);
 
       setQrUrl(preferenceData.init_point);
       setExternalReference(preferenceData.external_reference);
       setQrVisible(true);
     } catch (error) {
+      console.error('Error al generar el QR:', error);
       toast({
         title: 'Error al generar el QR',
         description: error.message,
@@ -61,6 +66,7 @@ const ConfirmationForm = () => {
 
   const handleGenerateQR = () => {
     const amount = paymentOption === '50%' ? 2500 : 5000;
+
     fetchPreference(amount);
   };
 
@@ -69,10 +75,12 @@ const ConfirmationForm = () => {
 
     const interval = setInterval(async () => {
       try {
+
         const res = await fetch(
           `/api/consultar-estado?external_reference=${externalReference}`
         );
         const data = await res.json();
+
         if (data.error) throw new Error(data.error);
 
         setPaymentStatus(data.status);
@@ -102,6 +110,7 @@ const ConfirmationForm = () => {
 
     return () => clearInterval(interval);
   }, [externalReference, paymentStatus, toast]);
+
 
   return (
     <Box p={5}>
