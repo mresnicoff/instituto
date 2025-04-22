@@ -5,7 +5,7 @@ const ACCESS_TOKEN = 'APP_USR-3763154181938673-022408-08bd9d9ffc93830392c6516c2a
 
 async function obtenerPagos() {
   try {
-    const response = await fetch('https://api.mercadopago.com/v1/payments/108722292431', {
+    const response = await fetch('https://api.mercadopago.com/v1/payments/108730313739', {
       headers: {
         Authorization: `Bearer ${ACCESS_TOKEN}`,
       },

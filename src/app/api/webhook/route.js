@@ -13,10 +13,10 @@ export async function POST(req) {
     const body = await req.json();
     console.log('Cuerpo de la notificación:', body);
 
-    const { action, data } = body;
+    const { type, data } = body;
 
     // Ignorar notificaciones que no sean payment.updated
-    if (action !== 'payment.updated' || !data?.id) {
+    if (type !== 'payment' || !data?.id) {
       console.log('Notificación ignorada:', { action, data });
       return new NextResponse(null, { status: 200 });
     }
@@ -52,6 +52,9 @@ export async function POST(req) {
     const statusMap = {
       approved: 'aprobado',
       rejected: 'rechazado',
+      pending: 'pendiente',
+      in_process: 'en proceso',
+      cancelled: 'cancelado',
     };
 
     const newStatus = statusMap[status];
