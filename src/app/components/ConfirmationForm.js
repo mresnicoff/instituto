@@ -15,8 +15,6 @@ import { useSearchParams } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-
-
 const ConfirmationForm = () => {
   const searchParams = useSearchParams();
   const [paymentOption, setPaymentOption] = useState('50%');
@@ -26,6 +24,7 @@ const ConfirmationForm = () => {
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const toast = useToast();
 
+  // Obtener datos de la reserva desde query params
   const reservationData = {
     date: searchParams?.get('date') || 'No disponible',
     hour: searchParams?.get('hour') || 'No disponible',
@@ -37,17 +36,63 @@ const ConfirmationForm = () => {
     alumnoId: searchParams?.get('alumnoId') || 'No disponible',
   };
 
+  // Función para crear la preferencia y la reserva
   async function fetchPreference(amount) {
     try {
+      // Validar datos requeridos
+      const requiredFields = ['date', 'hour', 'profesorId', 'alumnoId'];
+      const missingFields = requiredFields.filter(
+        (field) => !reservationData[field] || reservationData[field] === 'No disponible'
+      );
+      if (missingFields.length > 0) {
+        throw new Error(
+          `Faltan datos de la reserva: ${missingFields.join(', ')}`
+        );
+      }
 
+      // Asegurarse de que hour, profesorId y alumnoId sean números válidos
+      const parsedHour = parseInt(reservationData.hour);
+      const parsedProfesorId = parseInt(reservationData.profesorId);
+      const parsedAlumnoId = parseInt(reservationData.alumnoId);
+      if (isNaN(parsedHour) || isNaN(parsedProfesorId) || isNaN(parsedAlumnoId)) {
+        throw new Error('Hora, profesorId o alumnoId no son válidos');
+      }
+
+      // Llamar a /api/create-preference
+      console.log('Enviando solicitud a /api/create-preference con amount:', amount);
       const preferenceResponse = await fetch('/api/create-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount }),
       });
       const preferenceData = await preferenceResponse.json();
-
+      console.log('Respuesta de /api/create-preference:', preferenceData);
       if (preferenceData.error) throw new Error(preferenceData.error);
+
+      // Crear la reserva
+      console.log('Creando reserva con external_reference:', preferenceData.external_reference);
+      const createReservationResponse = await fetch('/api/create-reservation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profesorId: parsedProfesorId,
+          alumnoId: parsedAlumnoId,
+          date: reservationData.date,
+          hour: parsedHour,
+          subject: reservationData.subject,
+          professor: reservationData.professor,
+          alumno: reservationData.alumno,
+          importe: parseFloat(reservationData.importe),
+          status: 'pendiente',
+          ref: preferenceData.external_reference,
+        }),
+      });
+
+      const reservationDataResponse = await createReservationResponse.json();
+      if (!createReservationResponse.ok) {
+        throw new Error(reservationDataResponse.error || 'Error al crear la reserva');
+      }
+      console.log('Respuesta de /api/create-reservation:', reservationDataResponse);
 
       setQrUrl(preferenceData.init_point);
       setExternalReference(preferenceData.external_reference);
@@ -64,23 +109,25 @@ const ConfirmationForm = () => {
     }
   }
 
+  // Manejar el clic en "Generar Código QR"
   const handleGenerateQR = () => {
     const amount = paymentOption === '50%' ? 2500 : 5000;
-
+    console.log('Generando QR con amount:', amount);
     fetchPreference(amount);
   };
 
+  // Polling para consultar el estado del pago
   useEffect(() => {
     if (!externalReference || paymentStatus !== 'pending') return;
 
     const interval = setInterval(async () => {
       try {
-
+        console.log('Consultando estado para external_reference:', externalReference);
         const res = await fetch(
           `/api/consultar-estado?external_reference=${externalReference}`
         );
         const data = await res.json();
-
+        console.log('Respuesta de /api/consultar-estado:', data);
         if (data.error) throw new Error(data.error);
 
         setPaymentStatus(data.status);
@@ -111,18 +158,17 @@ const ConfirmationForm = () => {
     return () => clearInterval(interval);
   }, [externalReference, paymentStatus, toast]);
 
-
   return (
     <Box p={5}>
       <Text fontSize="xl" mb={4}>Confirma la reserva:</Text>
       <VStack spacing={4} align="start">
         <Text fontWeight="bold">Detalles de la reserva:</Text>
-        <Text>Materia: {reservationData.subject}</Text>
-        <Text>Profesor: {reservationData.professor}</Text>
-        <Text>Alumno: {reservationData.alumno}</Text>
-        <Text>Fecha: {reservationData.date}</Text>
+        <Text>Materia: {reservationData.subject || 'No disponible'}</Text>
+        <Text>Profesor: {reservationData.professor || 'No disponible'}</Text>
+        <Text>Alumno: {reservationData.alumno || 'No disponible'}</Text>
+        <Text>Fecha: {reservationData.date || 'No disponible'}</Text>
         <Text>Hora: {reservationData.hour ? `${reservationData.hour}:00` : 'No disponible'}</Text>
-        <Text>Importe total: ${reservationData.importe}</Text>
+        <Text>Importe total: ${reservationData.importe || 'No disponible'}</Text>
         <Text>
           Monto a pagar: ${paymentOption === '50%' ? 2500 : 5000} ({paymentOption})
         </Text>
