@@ -40,12 +40,13 @@ export async function POST(request) {
       ],
       payer: { email: 'test_user@example.com' },
       back_urls: {
-        success: 'https://tudominio.com/success',
-        failure: 'https://tudominio.com/failure',
-        pending: 'https://tudominio.com/pending',
+        success: 'https://instituto-five-sigma.vercel.app/api/webhook',
+        failure: 'https://instituto-five-sigma.vercel.app/api/webhook',
+        pending: 'https://instituto-five-sigma.vercel.app/api/webhook',
       },
       auto_return: 'approved',
       external_reference: externalReference, // Usar el external_reference generado
+      notification_url: 'https://instituto-five-sigma.vercel.app/api/webhook', // URL de tu webhook
     };
 
     const response = await preferenceClient.create({ body: preferenceData });
